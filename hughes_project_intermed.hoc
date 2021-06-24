@@ -1,0 +1,114 @@
+create soma[11] //M-cell is soma[0], motor neurons are somas1-10
+
+for i=0,10 soma[i]{
+//access soma[i]
+L=10
+diam=10
+nseg=3
+insert hh
+  }
+
+
+//M-cell initial segment 
+create axon[41] //41 segments of axon. even indices are nodes, odd are myelinated
+access axon[0] // the AIS 
+L=40 
+diam=3
+insert hh
+connect axon[0](0), soma[0](1) // connect beginning of AIS to end of M-soma
+
+
+// Exp synapses on motor neurons, receive input from M-nodes
+objref MNsyn[10]
+
+for i=1,10 soma[i]{ 
+MNsyn[i-1] = new ExpSyn(0.5) //the first MNsyn is on the second soma (the first MN soma)
+MNsyn[i-1].tau = 0.1
+MNsyn[i-1].e = 0 
+}
+
+
+  
+//M-cell axon parts = [myelin, node w/ synapse, myelin, bare axon]*10
+//g_pas and e_pas from Shen et al 1999 model=3342 memb.hoc
+
+  for i=1,40{
+             access axon[i] //myel segment
+             axon[i].L=45
+             axon[i].diam=6
+             axon[i].nseg=9
+             insert pas
+             axon[i].cm = 0.012 // lower capacitance for myelin
+             axon[i].Ra = 70
+             axon[i].e_pas = -65 // reversal potential near init reversal
+             axon[i].g_pas = 1/100000 // high resistance for myelin membrane
+             connect axon[i](0), axon[i-1](1)
+             
+             i = i+1
+             access axon[i] //NODES
+             insert hh
+             insert pas
+             axon[i].g_pas = 1/1000
+             axon[i].L=2
+             axon[i].diam=5
+             axon[i].nseg=3
+             connect axon[i](0), axon[i-1](1)
+			 
+			 i = i+1
+			 access axon[i] //myel segment
+             axon[i].L=45
+             axon[i].diam=6
+             axon[i].nseg=9
+             insert pas
+             axon[i].cm = 0.012 // lower capacitance for myelin
+             axon[i].Ra = 70
+             axon[i].e_pas = -65 // reversal potential near init reversal
+             axon[i].g_pas = 1/100000 // high resistance for myelin membrane
+             connect axon[i](0), axon[i-1](1)
+			 
+			 i = i+1
+             access axon[i] //nodes
+			 insert hh
+             insert pas
+			 axon[i].g_pas = 1/1000
+             axon[i].L=2
+             axon[i].diam=5
+             axon[i].nseg=3 
+             connect axon[i](0), axon[i-1](1)
+    }
+
+
+ //NETCONs to connect nodes to motor neuron MNsyns 
+objref nc[10] //10 connections, from each node to each MN
+
+for i=0,9{
+	access axon[i*4+2] 
+	nc[i]=new NetCon(&v(0.5),MNsyn[i])
+	nc[i].weight = 1
+}
+
+objectvar stim
+
+soma[0] stim = new IClamp(0.5)
+  xopen("project.ses")
+
+  stim.del = 10 
+stim.dur = 5
+stim.amp = 1
+tstop = 50
+v_init = -65
+t_stop = 50
+finitialize(-65)
+ // run()
+ 
+ objref vec, filesave
+vec = new Vector ()
+vec.record(&soma[1].v(.5)) // changed 10 to 1 to get FIRSTMN
+
+filesave = new File()
+filesave.wopen("myelin-intermed-test-FirstMN.csv") 
+
+
+run()
+vec.printf(filesave)
+filesave.close()
